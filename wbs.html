@@ -8,7 +8,8 @@
 <style>
   :root{
     --bg:#f4f6f9; --panel:#ffffff; --border:#dde3ea; --text:#1f2937; --sub:#6b7280;
-    --accent:#4e6a87; --accent-dark:#3a5068; --group-bg:#4e6a87; --group-text:#f2f5f9;
+    --accent:#3d495b; --accent-dark:#2c3541; --group-bg:#eceff5; --group-text:#2f3b4c;
+    --header-bg:#3d495b; --header-text:#ffffff;
     --danger:#e5484d; --danger-bg:#fdeaea;
     --st-done:#6b7280; --st-done-bg:#f4f5f6;
     --st-progress:#2f6fed; --st-progress-bg:#f2f6fe;
@@ -20,6 +21,7 @@
     :root{
       --bg:#14161a; --panel:#1c1f26; --border:#2b2f38; --text:#e6e9ee; --sub:#98a2b3;
       --accent:#6f8fb0; --accent-dark:#4e6a87; --group-bg:#2c3e52; --group-text:#dbe4ee;
+      --header-bg:#20242b; --header-text:#e6e9ee;
       --danger:#f0605f; --danger-bg:#3a2222;
       --st-done:#98a2b3; --st-done-bg:#23262c;
       --st-progress:#5b8def; --st-progress-bg:#1f2733;
@@ -49,6 +51,9 @@
   button.danger{color:var(--danger); border-color:var(--danger-bg);}
   button.danger:hover{background:var(--danger-bg); border-color:var(--danger);}
   button.small{padding:3px 8px; font-size:12px; border-radius:6px; white-space:nowrap; flex:0 0 auto;}
+  button.icon-btn{border:none; background:transparent; padding:2px 6px; font-size:13px; font-weight:800; border-radius:6px;}
+  button.icon-btn:hover{background:var(--bg); border-color:transparent;}
+  button.icon-btn.danger:hover{background:var(--danger-bg);}
   button:disabled{opacity:.35; cursor:not-allowed; pointer-events:none;}
   .spacer{flex:1;}
 
@@ -65,7 +70,7 @@
   col.c-assignee{width:156px;} col.c-md{width:70px;} col.c-date{width:178px;} col.c-date-end{width:200px;}
   col.c-status{width:96px;} col.c-actions{width:168px;}
   thead th{
-    background:var(--bg); color:var(--sub); font-size:12px; font-weight:700; text-align:left;
+    background:var(--header-bg); color:var(--header-text); font-size:12px; font-weight:700; text-align:left;
     padding:9px 8px; border-bottom:2px solid var(--border); position:sticky; top:0;
   }
   thead th.col-md{text-align:center;}
@@ -74,7 +79,7 @@
   input[type=number]{text-align:center; padding-left:2px; padding-right:0;}
   tr.group-row td{background:var(--group-bg); color:var(--group-text); font-weight:700; padding:3px 8px;}
   tr.group-row input{background:transparent; color:var(--group-text); font-weight:700;}
-  tr.group-row input::placeholder{color:rgba(242,245,249,.7);}
+  tr.group-row input::placeholder{color:rgba(47,59,76,.55);}
   @media (prefers-color-scheme: dark){
     tr.group-row input::placeholder{color:rgba(219,228,238,.6);}
   }
@@ -136,10 +141,10 @@
   .gantt-table col.g-col-week{width:30px;}
   .gantt-table col.g-col-status{width:60px;}
   .gantt-table th, .gantt-table td{border:1px solid var(--border); padding:4px 5px; text-align:center; white-space:nowrap;}
-  .gantt-table thead th{background:var(--bg); color:var(--sub); font-weight:700; position:sticky; top:0; z-index:2;}
+  .gantt-table thead th{background:var(--header-bg); color:var(--header-text); font-weight:700; position:sticky; top:0; z-index:2;}
   .gantt-table .gantt-title-cell{text-align:left; overflow:hidden; text-overflow:ellipsis; max-width:220px;}
   .gantt-table .sticky-c1, .gantt-table .sticky-c2, .gantt-table .sticky-c3{position:sticky; background:var(--panel); z-index:1;}
-  .gantt-table thead .sticky-c1, .gantt-table thead .sticky-c2, .gantt-table thead .sticky-c3{z-index:3; background:var(--bg);}
+  .gantt-table thead .sticky-c1, .gantt-table thead .sticky-c2, .gantt-table thead .sticky-c3{z-index:3; background:var(--header-bg);}
   .gantt-table .sticky-c1{left:0;}
   .gantt-table .sticky-c2{left:44px;}
   .gantt-table .sticky-c3{left:110px;}
@@ -147,7 +152,6 @@
   .gantt-row-group td.sticky-c1, .gantt-row-group td.sticky-c2{background:var(--group-bg); color:var(--group-text);}
   .gantt-row-group td.gantt-group-title{background:var(--group-bg); color:var(--group-text); text-align:left; padding-left:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .gantt-week-th.current-week{color:var(--danger);}
-  .gantt-table th.gantt-year-th{background:var(--group-bg); color:var(--group-text);}
   td.gantt-cell[data-category]{color:var(--text); font-size:0; background:#e6e6e6;}
   td.gantt-cell[data-category="기획"]{background:#fff2cc;}
   td.gantt-cell[data-category="작성"]{background:#fff2cc;}
@@ -156,7 +160,11 @@
   td.gantt-cell[data-category="테스트"]{background:#ededed;}
   td.gantt-cell[data-category="보고"]{background:#deebf7;}
   td.gantt-cell[data-category="배포"]{background:#dae3f3;}
-  .gantt-table th.month-start, .gantt-table td.month-start{border-left:1px solid var(--text);}
+  .gantt-table th.month-start, .gantt-table td.month-start{border-left:1px solid rgb(79,106,135);}
+  .gantt-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .gantt-toolbar h2{margin:0;}
+  .gantt-filter{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--sub); cursor:pointer; user-select:none;}
+  .gantt-filter input{width:auto; margin:0;}
 
   /* Modal */
   .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50;}
@@ -189,9 +197,10 @@
 
   .info-box{font-size:12.5px; color:var(--sub); background:var(--bg); border:1px dashed var(--border); border-radius:8px; padding:10px 12px; line-height:1.6;}
   @media print{
-    .toolbar, #ganttSection, .no-print{display:none !important;}
+    .toolbar, .no-print{display:none !important;}
     body{background:#fff;}
     .panel{box-shadow:none; border:none;}
+    .gantt-scroll{overflow:visible; border:none;}
   }
 </style>
 </head>
@@ -241,7 +250,12 @@
   </div>
 
   <div class="panel" id="ganttSection">
-    <h2>일정 간트차트</h2>
+    <div class="gantt-toolbar">
+      <h2>일정 간트차트</h2>
+      <label class="gantt-filter no-print">
+        <input type="checkbox" id="ganttHideDone"> 완료 그룹 제외
+      </label>
+    </div>
     <div class="gantt-scroll">
       <div class="gantt-inner" id="ganttInner"></div>
     </div>
@@ -725,13 +739,13 @@
     ]));
     const actions = el('td', {class:'actions-cell no-print'});
     const actionsInner = el('div', {class:'actions-inner'});
-    actionsInner.appendChild(el('button', {class:'small', title:'하위업무 추가', onclick:function(){
+    actionsInner.appendChild(el('button', {class:'small icon-btn', title:'하위업무 추가', onclick:function(){
       const prev = g.tasks[g.tasks.length-1];
       const start = prev && prev.end ? nextBusinessDay(prev.end) : toISO(new Date());
       g.tasks.push(makeTask({start:start}));
       fullRender();
     }}, ['+']));
-    actionsInner.appendChild(el('button', {class:'small danger', title:'그룹 삭제', onclick:function(){
+    actionsInner.appendChild(el('button', {class:'small danger icon-btn', title:'그룹 삭제', onclick:function(){
       if(confirm('"'+(g.title||'제목없음')+'" 그룹과 하위 업무를 모두 삭제할까요?')){
         state.groups = state.groups.filter(function(x){ return x.id!==g.id; });
         fullRender();
@@ -860,7 +874,7 @@
 
     const actions = el('td', {class:'actions-cell no-print'});
     const actionsInner = el('div', {class:'actions-inner'});
-    actionsInner.appendChild(el('button', {class:'small danger', title:'삭제', onclick:function(){
+    actionsInner.appendChild(el('button', {class:'small danger icon-btn', title:'삭제', onclick:function(){
       g.tasks = g.tasks.filter(function(x){ return x.id!==t.id; });
       fullRender();
     }}, ['X']));
@@ -956,12 +970,11 @@
     const minD = parseISO(minStartStr), maxD = parseISO(maxEndStr);
     const today = new Date(); today.setHours(0,0,0,0);
     const curY = today.getFullYear(), curM = today.getMonth();
-    const endD = maxD < today ? today : maxD;
 
     const periods = [];
     const yearGroups = [];
     let y = minD.getFullYear();
-    const endY = endD.getFullYear();
+    const endY = maxD.getFullYear();
     let guard = 0;
     while(y<=endY && guard<50){
       guard++;
@@ -970,8 +983,9 @@
         yearGroups.push({year:y, kind:'year-bucket'});
       } else {
         const monthItems = [];
-        const lastMonthInData = (y===endD.getFullYear()) ? endD.getMonth() : 11;
-        for(let m=0; m<=lastMonthInData; m++){
+        const firstMonthInYear = (y===minD.getFullYear()) ? minD.getMonth() : 0;
+        const lastMonthInData = (y===maxD.getFullYear()) ? maxD.getMonth() : 11;
+        for(let m=firstMonthInYear; m<=lastMonthInData; m++){
           const monthDays = new Date(y, m+1, 0).getDate();
           if(y<curY || (y===curY && m<curM)){
             periods.push({kind:'month', label:(m+1)+'월', start:new Date(y,m,1), end:new Date(y,m,monthDays)});
@@ -1004,11 +1018,13 @@
     ];
   }
 
+  let ganttHideCompleted = false;
   function renderGantt(){
     const container = document.getElementById('ganttInner');
     container.innerHTML = '';
+    const visibleGroups = ganttHideCompleted ? state.groups.filter(function(g){ return g._status!=='완료'; }) : state.groups;
     let allTasks = [];
-    state.groups.forEach(function(g){ allTasks = allTasks.concat(g.tasks); });
+    visibleGroups.forEach(function(g){ allTasks = allTasks.concat(g.tasks); });
     const validStarts = allTasks.map(function(t){ return t.start; }).filter(Boolean);
     const validEnds = allTasks.map(function(t){ return t.end; }).filter(Boolean);
     if(validStarts.length===0 || validEnds.length===0){
@@ -1075,7 +1091,7 @@
     table.appendChild(thead);
 
     const tbody = el('tbody');
-    state.groups.forEach(function(g, gi){
+    visibleGroups.forEach(function(g, gi){
       const gtr = el('tr', {class:'gantt-row-group'});
       gtr.appendChild(el('td', {class:'sticky-c1'}, [(gi+1)+'']));
       gtr.appendChild(el('td', {class:'sticky-c2'}, [g.category||'']));
@@ -1589,6 +1605,10 @@
       e.target.value = '';
     };
     reader.readAsText(file);
+  });
+  document.getElementById('ganttHideDone').addEventListener('change', function(e){
+    ganttHideCompleted = e.target.checked;
+    renderGantt();
   });
   document.getElementById('btnPrint').addEventListener('click', function(){ window.print(); });
   document.getElementById('btnClearAll').addEventListener('click', function(){
