@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WBS 일정 관리</title>
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#f4f6f9; --panel:#ffffff; --border:#dde3ea; --text:#1f2937; --sub:#6b7280;
@@ -26,7 +28,7 @@
     --shadow: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.06);
   }
   @media (prefers-color-scheme: dark){
-    :root{
+    :root:not([data-theme="light"]){
       --bg:#14161a; --panel:#1c1f26; --border:#2b2f38; --text:#e6e9ee; --sub:#98a2b3;
       --accent:#6f8fb0; --accent-dark:#4e6a87; --group-bg:#2c3e52; --group-text:#dbe4ee;
       --header-bg:#20242b; --header-text:#e6e9ee;
@@ -46,10 +48,29 @@
       --shadow: 0 1px 3px rgba(0,0,0,.4);
     }
   }
+  :root[data-theme="dark"]{
+    --bg:#14161a; --panel:#1c1f26; --border:#2b2f38; --text:#e6e9ee; --sub:#98a2b3;
+    --accent:#6f8fb0; --accent-dark:#4e6a87; --group-bg:#2c3e52; --group-text:#dbe4ee;
+    --header-bg:#20242b; --header-text:#e6e9ee;
+    --danger:#f0605f; --danger-bg:#3a2222;
+    --st-done:#98a2b3; --st-done-bg:#23262c;
+    --st-progress:#5b8def; --st-progress-bg:#1f2733;
+    --st-hold:#6fcf73; --st-hold-bg:#1f2921;
+    --st-plan:#e0ad4b; --st-plan-bg:#2b271c;
+    --cal-c0-bg:hsl(210,32%,20%); --cal-c0-text:hsl(210,60%,80%); --cal-c0-border:hsl(210,40%,42%);
+    --cal-c1-bg:hsl(150,32%,20%); --cal-c1-text:hsl(150,55%,78%); --cal-c1-border:hsl(150,35%,40%);
+    --cal-c2-bg:hsl(265,28%,22%); --cal-c2-text:hsl(265,60%,82%); --cal-c2-border:hsl(265,35%,46%);
+    --cal-c3-bg:hsl(25,32%,20%); --cal-c3-text:hsl(25,65%,75%); --cal-c3-border:hsl(25,45%,42%);
+    --cal-c4-bg:hsl(185,28%,18%); --cal-c4-text:hsl(185,55%,75%); --cal-c4-border:hsl(185,35%,40%);
+    --cal-c5-bg:hsl(340,28%,22%); --cal-c5-text:hsl(340,60%,82%); --cal-c5-border:hsl(340,35%,46%);
+    --cal-c6-bg:hsl(45,32%,18%); --cal-c6-text:hsl(45,70%,72%); --cal-c6-border:hsl(45,40%,40%);
+    --cal-c7-bg:hsl(5,30%,20%); --cal-c7-text:hsl(5,60%,78%); --cal-c7-border:hsl(5,40%,44%);
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
   *{box-sizing:border-box;}
   body{
     margin:0; background:var(--bg); color:var(--text);
-    font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-family: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     font-size:14px;
   }
   .wrap{max-width:1500px; margin:0 auto; padding:24px 20px 80px;}
@@ -219,6 +240,8 @@
   .cal-viewtoggle{display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden;}
   .cal-viewtoggle button{border:none; border-radius:0; padding:6px 14px;}
   .cal-viewtoggle button.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+  select.cal-project-select{width:auto; min-width:150px; max-width:220px; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text); font-weight:600; font-size:13px;}
+  select.cal-project-select:hover{border-color:var(--accent);}
   .cal-filter{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto; font-size:12.5px;}
   .cal-filter label{display:flex; align-items:center; gap:5px; cursor:pointer; padding:3px 10px; border-radius:999px; border:1px solid var(--border); user-select:none; font-weight:600;}
   .cal-filter label input{width:auto; margin:0;}
@@ -240,9 +263,12 @@
   .cal-week-view .cal-daynum{font-size:12.5px; font-weight:600; text-align:left; padding:6px 8px;}
   .cal-daynum.other-month-num{opacity:.4;}
   .cal-daynum.today{color:var(--accent); font-weight:800;}
-  .cal-bar{margin:1px 2px; border-radius:5px; font-size:11px; padding:2px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; border:1px solid transparent; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:4px;}
+  .cal-bar{margin:1px 2px; border-radius:5px; font-size:11px; padding:2px 7px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; border:1px solid transparent; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:5px; box-sizing:border-box;}
   .cal-bar span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .cal-bar.cal-task{font-weight:500; opacity:.92; cursor:default; padding-left:14px; position:relative;}
+  .cal-chevron{flex:0 0 auto; font-size:9px; opacity:.85;}
+  .cal-dot{flex:0 0 auto; width:6px; height:6px; border-radius:50%;}
+  /* 하위(세부 업무) 막대: 배경을 비우고 얇은 테두리 + 좌측 컬러 스트라이프로 상위 막대와 뚜렷이 구분합니다. */
+  .cal-bar.cal-task{background:var(--panel); font-weight:500; font-size:10.5px; cursor:default; border-width:1px; border-style:solid;}
   .cal-bar.clip-start-l{border-top-left-radius:0; border-bottom-left-radius:0;}
   .cal-bar.clip-end-r{border-top-right-radius:0; border-bottom-right-radius:0;}
   .cal-week-empty{padding:34px; text-align:center; color:var(--sub); font-size:13px;}
@@ -328,6 +354,9 @@
           <button id="calViewMonth" class="active">월</button>
           <button id="calViewWeek">주</button>
         </div>
+        <select id="calProjectSelect" class="cal-project-select">
+          <option value="">전체 프로젝트</option>
+        </select>
         <div class="cal-filter" id="calFilter">
           <label class="f-예정"><input type="checkbox" data-status="예정" checked> 예정</label>
           <label class="f-진행"><input type="checkbox" data-status="진행" checked> 진행</label>
@@ -568,7 +597,17 @@
   /* ---------------- Google Sheet sync ---------------- */
   const GS_URL_KEY = 'wbs_gs_url';
   const GS_LAST_SAVED_KEY = 'wbs_gs_last_saved';
+  // 이 WBS 파일에 기본으로 연결된 구글 시트 Web App 배포 URL입니다.
+  // 사용자가 "연결 해제"를 누르지 않는 한, 이 브라우저에 처음 열 때 자동으로 연결됩니다.
+  const DEFAULT_GS_URL = 'https://script.google.com/macros/s/AKfycbw811wSvaZt90LeelB-3yzp88ubZWsEKoGFvpHDzsBc4I4ivJoAD3LdmIAPUMStpCzr9A/exec';
   let gsSyncTimer = null;
+  function gsEnsureDefaultUrl(){
+    try{
+      if(localStorage.getItem(GS_URL_KEY) === null){
+        localStorage.setItem(GS_URL_KEY, DEFAULT_GS_URL);
+      }
+    }catch(e){}
+  }
   function gsGetUrl(){ try{ return localStorage.getItem(GS_URL_KEY) || ''; }catch(e){ return ''; } }
   function gsSetUrl(url){
     try{
@@ -1159,6 +1198,7 @@
   const CAL_STATUSES = ['예정','진행','완료','보류'];
   let calView = 'month'; // 'month' | 'week'
   let calStatusFilter = new Set(CAL_STATUSES);
+  let calProjectFilter = ''; // '' = 전체 프로젝트, 아니면 group.id
   let calCollapsedGroups = new Set();
   let calAnchor = new Date(); calAnchor.setHours(0,0,0,0);
   let calVisibleGroups = [];
@@ -1168,6 +1208,7 @@
       if(raw.view==='month' || raw.view==='week') calView = raw.view;
       if(Array.isArray(raw.statuses) && raw.statuses.length) calStatusFilter = new Set(raw.statuses.filter(function(s){ return CAL_STATUSES.indexOf(s)!==-1; }));
       if(Array.isArray(raw.collapsed)) calCollapsedGroups = new Set(raw.collapsed);
+      if(typeof raw.project === 'string') calProjectFilter = raw.project;
     }catch(e){}
   }
   function saveCalPrefs(){
@@ -1175,7 +1216,8 @@
       localStorage.setItem(CAL_PREFS_KEY, JSON.stringify({
         view: calView,
         statuses: Array.from(calStatusFilter),
-        collapsed: Array.from(calCollapsedGroups)
+        collapsed: Array.from(calCollapsedGroups),
+        project: calProjectFilter
       }));
     }catch(e){}
   }
@@ -1217,6 +1259,20 @@
       const gS = parseISO(g._start), gE = parseISO(g._end);
       if(!gS || !gE) return;
       if(!calRangesOverlap(gS,gE,weekStart,weekEnd)) return;
+      const collapsed = calCollapsedGroups.has(g.id);
+      // 하위 업무(태스크) 중 이 주(week)에 실제로 걸쳐 있는 것만 계산 — 접힌 프로젝트는 예외적으로
+      // 전체 기간을 그대로 보여줍니다(사용자가 의도적으로 접은 것이므로).
+      const weekTasks = [];
+      if(!collapsed){
+        g.tasks.forEach(function(t){
+          if(!calStatusFilter.has(t.status)) return;
+          const tS = parseISO(t.start), tE = parseISO(t.end);
+          if(!tS || !tE) return;
+          if(!calRangesOverlap(tS,tE,weekStart,weekEnd)) return;
+          weekTasks.push({t:t, tS:tS, tE:tE});
+        });
+        if(weekTasks.length===0) return; // 이 주에 포함된 하위 업무가 없으면 프로젝트 막대도 노출하지 않음
+      }
       const gc = calClipRange(gS,gE,weekStart,weekEnd);
       segments.push({
         kind:'project', group:g, laneIndex:lane,
@@ -1225,22 +1281,16 @@
         label: g.title || '(제목없음)', colorIdx: calColorIdx(g)
       });
       lane++;
-      if(!calCollapsedGroups.has(g.id)){
-        g.tasks.forEach(function(t){
-          if(!calStatusFilter.has(t.status)) return;
-          const tS = parseISO(t.start), tE = parseISO(t.end);
-          if(!tS || !tE) return;
-          if(!calRangesOverlap(tS,tE,weekStart,weekEnd)) return;
-          const tc = calClipRange(tS,tE,weekStart,weekEnd);
-          segments.push({
-            kind:'task', group:g, task:t, laneIndex:lane,
-            startIdx: calDayIdx(tc.start, weekStart), endIdx: calDayIdx(tc.end, weekStart),
-            isTrueStart: calSameYMD(tS, tc.start), isTrueEnd: calSameYMD(tE, tc.end),
-            label: t.detail || '(제목없음)', colorIdx: calColorIdx(g)
-          });
-          lane++;
+      weekTasks.forEach(function(wt){
+        const tc = calClipRange(wt.tS, wt.tE, weekStart, weekEnd);
+        segments.push({
+          kind:'task', group:g, task:wt.t, laneIndex:lane,
+          startIdx: calDayIdx(tc.start, weekStart), endIdx: calDayIdx(tc.end, weekStart),
+          isTrueStart: calSameYMD(wt.tS, tc.start), isTrueEnd: calSameYMD(wt.tE, tc.end),
+          label: wt.t.detail || '(제목없음)', colorIdx: calColorIdx(g)
         });
-      }
+        lane++;
+      });
     });
     return {segments, laneCount:lane};
   }
@@ -1269,11 +1319,12 @@
       });
       bar.style.gridColumn = (seg.startIdx+1)+' / '+(seg.endIdx+2);
       bar.style.gridRow = String(seg.laneIndex+2);
-      bar.style.background = 'var(--cal-c'+seg.colorIdx+'-bg)';
-      bar.style.color = 'var(--cal-c'+seg.colorIdx+'-text)';
-      bar.style.borderColor = 'var(--cal-c'+seg.colorIdx+'-border)';
       if(seg.kind==='project'){
-        bar.appendChild(el('span', {style:'flex:0 0 auto;'}, [calCollapsedGroups.has(seg.group.id) ? '▸' : '▾']));
+        // 상위(프로젝트): 색이 꽉 찬 막대 + 펼침/접힘 화살표 — 굵고 진하게
+        bar.style.background = 'var(--cal-c'+seg.colorIdx+'-bg)';
+        bar.style.color = 'var(--cal-c'+seg.colorIdx+'-text)';
+        bar.style.borderColor = 'var(--cal-c'+seg.colorIdx+'-border)';
+        bar.appendChild(el('span', {class:'cal-chevron'}, [calCollapsedGroups.has(seg.group.id) ? '▸' : '▾']));
         bar.appendChild(el('span', {}, [seg.label]));
         bar.addEventListener('click', function(){
           if(calCollapsedGroups.has(seg.group.id)) calCollapsedGroups.delete(seg.group.id);
@@ -1282,6 +1333,11 @@
           renderCalendar();
         });
       } else {
+        // 하위(세부 업무): 배경은 비우고 프로젝트 색상의 점 + 왼쪽 컬러 바로만 표시 — 한눈에 "하위 항목"으로 구분
+        bar.style.borderColor = 'var(--border)';
+        bar.style.borderLeft = '3px solid var(--cal-c'+seg.colorIdx+'-border)';
+        bar.style.color = 'var(--text)';
+        bar.appendChild(el('span', {class:'cal-dot', style:'background:var(--cal-c'+seg.colorIdx+'-border);'}));
         bar.appendChild(el('span', {}, [seg.label]));
       }
       weekEl.appendChild(bar);
@@ -1298,13 +1354,29 @@
       labelEl.textContent = (s.getMonth()+1)+'.'+s.getDate()+' ~ '+(e.getMonth()+1)+'.'+e.getDate();
     }
   }
+  function calRenderProjectOptions(){
+    const sel = document.getElementById('calProjectSelect');
+    if(!sel) return;
+    const current = calProjectFilter;
+    sel.innerHTML = '';
+    sel.appendChild(el('option', {value:''}, ['전체 프로젝트']));
+    state.groups.forEach(function(g){
+      sel.appendChild(el('option', Object.assign({value:g.id}, g.id===current?{selected:'selected'}:{}), [g.title || '(제목없음)']));
+    });
+    sel.value = current;
+  }
   function renderCalendar(){
     const container = document.getElementById('calendarGrid');
     if(!container) return;
     container.innerHTML = '';
+    if(calProjectFilter && !state.groups.some(function(g){ return g.id===calProjectFilter; })){
+      calProjectFilter = ''; // 선택된 프로젝트가 삭제된 경우 전체 보기로 복귀
+    }
     calVisibleGroups = state.groups.filter(function(g){
+      if(calProjectFilter && g.id!==calProjectFilter) return false;
       return g.tasks.some(function(t){ return calStatusFilter.has(t.status); });
     });
+    calRenderProjectOptions();
     const dowRow = el('div', {class:'cal-dow-row'});
     DOW.forEach(function(d,i){ dowRow.appendChild(el('div', {class: i===0?'sun':(i===6?'sat':'')}, [d])); });
     container.appendChild(dowRow);
@@ -1821,6 +1893,11 @@
   document.getElementById('calViewWeek').addEventListener('click', function(){
     calView = 'week'; saveCalPrefs(); renderCalendar();
   });
+  document.getElementById('calProjectSelect').addEventListener('change', function(e){
+    calProjectFilter = e.target.value;
+    saveCalPrefs();
+    renderCalendar();
+  });
   document.getElementById('calFilter').addEventListener('change', function(e){
     const cb = e.target;
     if(cb.tagName!=='INPUT') return;
@@ -1838,6 +1915,7 @@
     }
   });
   /* ---------------- Init ---------------- */
+  gsEnsureDefaultUrl();
   loadHolidayStorage();
   loadCalPrefs();
   load();
