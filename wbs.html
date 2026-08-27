@@ -288,7 +288,8 @@
   .tl-label-row{height:30px; display:flex; align-items:center; padding:0 10px; border-bottom:1px solid var(--border); font-size:12.5px; gap:6px; box-sizing:border-box; overflow:hidden;}
   .tl-label-row.tl-header{background:var(--header-bg); color:var(--header-text); font-weight:700; font-size:12px;}
   .tl-label-row.tl-group{background:var(--group-bg); color:var(--group-text); font-weight:700; cursor:pointer;}
-  .tl-label-row.tl-task{padding-left:24px; color:var(--text);}
+  .tl-label-row.tl-task{padding-left:24px; color:var(--text); cursor:pointer;}
+  .tl-label-row.tl-task:hover{background:var(--bg);}
   .tl-label-row .tl-name{flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .tl-dep-btn{flex:0 0 auto; border:none; background:transparent; color:var(--sub); cursor:pointer; font-size:11px; padding:2px 5px; border-radius:5px; white-space:nowrap;}
   .tl-dep-btn:hover{background:var(--bg); color:var(--accent);}
@@ -305,8 +306,12 @@
   .tl-bar .tl-dot{width:6px; height:6px; border-radius:50%; flex:0 0 auto;}
   .tl-weekend-col{position:absolute; top:0; background:rgba(120,120,120,.06); pointer-events:none;}
   .tl-today-line{position:absolute; top:0; width:2px; background:var(--danger); opacity:.55; pointer-events:none; z-index:3;}
-  .tl-dep-svg{position:absolute; top:0; left:0; pointer-events:none; z-index:2; overflow:visible;}
+  .tl-dep-svg{position:absolute; top:0; left:0; pointer-events:none; overflow:visible;}
   .tl-empty{padding:40px; text-align:center; color:var(--sub); font-size:13px;}
+  .tl-bar-label-outside{position:absolute; top:6px; height:18px; line-height:18px; white-space:nowrap; pointer-events:none; font-size:10.5px; color:var(--text); background:var(--panel); padding:0 4px 0 2px; border-radius:3px;}
+  .tl-bar-label-outside-project{top:5px; height:20px; line-height:20px; font-size:11px; font-weight:700;}
+  @keyframes tl-flash-anim{ 0%{box-shadow:0 0 0 4px var(--accent);} 100%{box-shadow:0 0 0 0 transparent;} }
+  .tl-bar.tl-flash{ animation: tl-flash-anim 1.1s ease; }
   .tl-dep-popover{position:fixed; z-index:80; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); padding:10px; width:290px; max-height:380px; display:flex; flex-direction:column;}
   .tl-dep-popover h3{margin:0 0 8px; font-size:13px;}
   .tl-dep-popover .tl-dep-sub{font-size:11.5px; color:var(--sub); margin:0 0 8px; line-height:1.5;}
@@ -421,6 +426,12 @@
           <span class="tl-legend-item"><span class="tl-legend-swatch tl-legend-project"></span>프로젝트</span>
           <span class="tl-legend-item"><span class="tl-legend-swatch tl-legend-task"></span>세부 업무</span>
           <span class="tl-legend-item"><svg width="22" height="10" viewBox="0 0 22 10"><path d="M1 5 H17" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M15 2 L19 5 L15 8" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>선행 업무(종속성) — 업무명 옆 🔗을 눌러 지정</span>
+        </div>
+        <div class="cal-filter" id="tlFilter">
+          <label class="f-예정"><input type="checkbox" data-status="예정" checked> 예정</label>
+          <label class="f-진행"><input type="checkbox" data-status="진행" checked> 진행</label>
+          <label class="f-완료"><input type="checkbox" data-status="완료" checked> 완료</label>
+          <label class="f-보류"><input type="checkbox" data-status="보류" checked> 보류</label>
         </div>
         <div class="tl-zoom">
           <button id="tlZoomOut" class="small" title="축소">－</button>
@@ -1462,16 +1473,27 @@
   /* ---------------- Timeline (Notion-style bars + dependency arrows) ---------------- */
   const TL_ROW_H = 30;
   const TL_AXIS_H = 30;
-  const TL_DAYWIDTH_KEY = 'wbs_tl_daywidth';
+  const TL_PREFS_KEY = 'wbs_tl_prefs_v1';
   let tlDayWidth = 26;
+  let tlStatusFilter = new Set(CAL_STATUSES);
   function tlLoadPrefs(){
     try{
-      const v = Number(localStorage.getItem(TL_DAYWIDTH_KEY));
-      if(v && v>=10 && v<=60) tlDayWidth = v;
+      const stored = localStorage.getItem(TL_PREFS_KEY);
+      if(stored){
+        const raw = JSON.parse(stored);
+        if(raw.daywidth && raw.daywidth>=10 && raw.daywidth<=60) tlDayWidth = raw.daywidth;
+        if(Array.isArray(raw.statuses) && raw.statuses.length) tlStatusFilter = new Set(raw.statuses.filter(function(s){ return CAL_STATUSES.indexOf(s)!==-1; }));
+      } else {
+        // 이전 버전(숫자 문자열만 저장)과의 호환
+        const legacy = Number(localStorage.getItem('wbs_tl_daywidth'));
+        if(legacy && legacy>=10 && legacy<=60) tlDayWidth = legacy;
+      }
     }catch(e){}
   }
   function tlSavePrefs(){
-    try{ localStorage.setItem(TL_DAYWIDTH_KEY, String(tlDayWidth)); }catch(e){}
+    try{
+      localStorage.setItem(TL_PREFS_KEY, JSON.stringify({ daywidth: tlDayWidth, statuses: Array.from(tlStatusFilter) }));
+    }catch(e){}
   }
   function tlOverallRange(){
     const starts=[], ends=[];
@@ -1484,6 +1506,23 @@
     const d = parseISO(dateStr);
     if(!d) return 0;
     return Math.round((d-originDate)/86400000);
+  }
+  let _tlMeasureCtx = null;
+  function tlMeasureTextWidth(text, font){
+    if(!_tlMeasureCtx){ _tlMeasureCtx = document.createElement('canvas').getContext('2d'); }
+    _tlMeasureCtx.font = font;
+    return _tlMeasureCtx.measureText(text).width;
+  }
+  function tlScrollToBar(scrollEl, left, width, barEl){
+    if(!scrollEl) return;
+    const target = left + width/2 - scrollEl.clientWidth/2;
+    const maxScroll = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
+    scrollEl.scrollTo({ left: Math.max(0, Math.min(target, maxScroll)), behavior:'smooth' });
+    if(barEl){
+      barEl.classList.remove('tl-flash');
+      void barEl.offsetWidth;
+      barEl.classList.add('tl-flash');
+    }
   }
   function tlDepPathD(predEndX, predY, succStartX, succY){
     // 화살표가 막대 위를 가로지르지 않도록, 선행 막대 끝 → 후행 막대 시작이 여유 있게 떨어져 있으면
@@ -1502,9 +1541,11 @@
     const rows = [];
     const taskRowIndex = {};
     state.groups.forEach(function(g){
+      const visibleTasks = g.tasks.filter(function(t){ return tlStatusFilter.has(t.status); });
+      if(visibleTasks.length===0) return; // 상태 필터에 걸리는 업무가 하나도 없으면 프로젝트 자체를 숨김
       rows.push({type:'group', group:g});
       if(!g.collapsed){
-        g.tasks.forEach(function(t){
+        visibleTasks.forEach(function(t){
           taskRowIndex[t.id] = rows.length;
           rows.push({type:'task', group:g, task:t});
         });
@@ -1577,6 +1618,9 @@
     const container = document.getElementById('timelineInner');
     if(!container) return;
     container.innerHTML = '';
+    document.querySelectorAll('#tlFilter input[type=checkbox]').forEach(function(cb){
+      cb.checked = tlStatusFilter.has(cb.getAttribute('data-status'));
+    });
     const range = tlOverallRange();
     if(!range){
       container.appendChild(el('div', {class:'tl-empty'}, ['표시할 일정 데이터가 없습니다.']));
@@ -1585,32 +1629,18 @@
     const originDate = calAddDays(parseISO(range.minISO), -1);
     const endDate = calAddDays(parseISO(range.maxISO), 2);
     const totalDays = Math.round((endDate-originDate)/86400000)+1;
-    const totalWidth = totalDays*tlDayWidth;
+    // 막대 밖으로 흘러나오는 라벨 텍스트가 잘리지 않도록 오른쪽에 여유 폭을 둡니다.
+    const totalWidth = totalDays*tlDayWidth + 220;
     const {rows, taskRowIndex} = tlBuildRows();
+    if(rows.length===0){
+      container.appendChild(el('div', {class:'tl-empty'}, ['표시할 일정이 없습니다. (상태 필터를 확인해보세요)']));
+      return;
+    }
     const totalContentH = TL_AXIS_H + rows.length*TL_ROW_H;
 
     const wrap = el('div', {class:'tl-wrap'});
     const labels = el('div', {class:'tl-labels'});
     labels.appendChild(el('div', {class:'tl-label-row tl-header'}, ['프로젝트 / 업무']));
-    rows.forEach(function(r){
-      if(r.type==='group'){
-        const g = r.group;
-        const row = el('div', {class:'tl-label-row tl-group'});
-        row.appendChild(el('span', {style:'flex:0 0 auto;'}, [g.collapsed?'▸':'▾']));
-        row.appendChild(el('span', {class:'tl-name', title:g.title||''}, [g.title||'(제목없음)']));
-        row.addEventListener('click', function(){ g.collapsed = !g.collapsed; fullRender(); });
-        labels.appendChild(row);
-      } else {
-        const t = r.task;
-        const row = el('div', {class:'tl-label-row tl-task'});
-        row.appendChild(el('span', {class:'tl-name', title:t.detail||''}, [t.detail||'(제목없음)']));
-        const depCount = (t.dependsOn||[]).length;
-        const depBtn = el('button', {class:'tl-dep-btn'+(depCount?' has-dep':''), title:'선행 업무 지정'}, [depCount ? ('🔗 '+depCount) : '🔗']);
-        depBtn.addEventListener('click', function(e){ e.stopPropagation(); tlOpenDepPopover(depBtn, t); });
-        row.appendChild(depBtn);
-        labels.appendChild(row);
-      }
-    });
     wrap.appendChild(labels);
 
     const chartScroll = el('div', {class:'tl-chart-scroll'});
@@ -1652,38 +1682,7 @@
       chart.appendChild(el('div', {class:'tl-today-line', style:'left:'+(offset*tlDayWidth)+'px; height:'+totalContentH+'px;', title:'오늘'}));
     }
 
-    rows.forEach(function(r){
-      const rowEl = el('div', {class:'tl-row'});
-      if(r.type==='group'){
-        const g = r.group;
-        const colorIdx = calColorIdx(g);
-        const left = tlDayOffset(originDate, g._start)*tlDayWidth;
-        const width = Math.max((diffDays(g._start,g._end)+1)*tlDayWidth-3, 6);
-        const bar = el('div', {
-          class:'tl-bar',
-          style:'left:'+left+'px; width:'+width+'px; background:var(--cal-c'+colorIdx+'-bg); color:var(--cal-c'+colorIdx+'-text); border:1px solid var(--cal-c'+colorIdx+'-border);',
-          title: (g.title||'(제목없음)')+' ('+fmtDisplay(g._start)+' ~ '+fmtDisplay(g._end)+', '+(g._md||0)+'MD)'
-        });
-        bar.appendChild(el('span', {}, [g.title||'(제목없음)']));
-        bar.addEventListener('click', function(){ g.collapsed = !g.collapsed; fullRender(); });
-        rowEl.appendChild(bar);
-      } else {
-        const t = r.task, g = r.group;
-        const colorIdx = calColorIdx(g);
-        const left = tlDayOffset(originDate, t.start)*tlDayWidth;
-        const width = Math.max((diffDays(t.start,t.end)+1)*tlDayWidth-3, 6);
-        const bar = el('div', {
-          class:'tl-bar tl-bar-task',
-          style:'left:'+left+'px; width:'+width+'px; border-left:3px solid var(--cal-c'+colorIdx+'-border);',
-          title: (t.category?t.category+' · ':'')+(t.detail||'(제목없음)')+' ('+fmtDisplay(t.start)+' ~ '+fmtDisplay(t.end)+', '+t.md+'MD, '+t.status+')'
-        });
-        bar.appendChild(el('span', {class:'tl-dot', style:'background:var(--cal-c'+colorIdx+'-border);'}));
-        bar.appendChild(el('span', {}, [t.detail||'(제목없음)']));
-        rowEl.appendChild(bar);
-      }
-      chart.appendChild(rowEl);
-    });
-
+    // 종속성 화살표는 막대/라벨보다 먼저 그려서, 막대·라벨이 화살표 위에 겹쳐 보이도록(화살표가 뒤로 가도록) 합니다.
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('class', 'tl-dep-svg');
@@ -1726,6 +1725,69 @@
       });
     });
     chart.appendChild(svg);
+
+    // 라벨(왼쪽 목록)과 막대(오른쪽 차트)를 같은 순회에서 함께 만들어, 라벨 클릭 시
+    // 해당 막대의 위치(left/width)를 그대로 재사용해 "해당 기간으로 이동"할 수 있게 합니다.
+    const PROJECT_FONT = '700 11px "Noto Sans KR", sans-serif';
+    const TASK_FONT = '500 10.5px "Noto Sans KR", sans-serif';
+    rows.forEach(function(r){
+      const rowEl = el('div', {class:'tl-row'});
+      if(r.type==='group'){
+        const g = r.group;
+        const colorIdx = calColorIdx(g);
+        const left = tlDayOffset(originDate, g._start)*tlDayWidth;
+        const width = Math.max((diffDays(g._start,g._end)+1)*tlDayWidth-3, 6);
+        const label = g.title||'(제목없음)';
+        const bar = el('div', {
+          class:'tl-bar',
+          style:'left:'+left+'px; width:'+width+'px; background:var(--cal-c'+colorIdx+'-bg); color:var(--cal-c'+colorIdx+'-text); border:1px solid var(--cal-c'+colorIdx+'-border);',
+          title: label+' ('+fmtDisplay(g._start)+' ~ '+fmtDisplay(g._end)+', '+(g._md||0)+'MD)'
+        });
+        const neededInside = tlMeasureTextWidth(label, PROJECT_FONT)+16;
+        if(width>=neededInside){
+          bar.appendChild(el('span', {}, [label]));
+        } else {
+          rowEl.appendChild(el('span', {class:'tl-bar-label-outside tl-bar-label-outside-project', style:'left:'+(left+width+5)+'px;'}, [label]));
+        }
+        bar.addEventListener('click', function(){ g.collapsed = !g.collapsed; fullRender(); });
+        rowEl.appendChild(bar);
+
+        const row = el('div', {class:'tl-label-row tl-group'});
+        row.appendChild(el('span', {style:'flex:0 0 auto;'}, [g.collapsed?'▸':'▾']));
+        row.appendChild(el('span', {class:'tl-name', title:label}, [label]));
+        row.addEventListener('click', function(){ g.collapsed = !g.collapsed; fullRender(); });
+        labels.appendChild(row);
+      } else {
+        const t = r.task, g = r.group;
+        const colorIdx = calColorIdx(g);
+        const left = tlDayOffset(originDate, t.start)*tlDayWidth;
+        const width = Math.max((diffDays(t.start,t.end)+1)*tlDayWidth-3, 6);
+        const label = t.detail||'(제목없음)';
+        const bar = el('div', {
+          class:'tl-bar tl-bar-task',
+          style:'left:'+left+'px; width:'+width+'px; border-left:3px solid var(--cal-c'+colorIdx+'-border);',
+          title: (t.category?t.category+' · ':'')+label+' ('+fmtDisplay(t.start)+' ~ '+fmtDisplay(t.end)+', '+t.md+'MD, '+t.status+')'
+        });
+        bar.appendChild(el('span', {class:'tl-dot', style:'background:var(--cal-c'+colorIdx+'-border);'}));
+        const neededInside = tlMeasureTextWidth(label, TASK_FONT)+6+5+14;
+        if(width>=neededInside){
+          bar.appendChild(el('span', {}, [label]));
+        } else {
+          rowEl.appendChild(el('span', {class:'tl-bar-label-outside', style:'left:'+(left+width+5)+'px;'}, [label]));
+        }
+        rowEl.appendChild(bar);
+
+        const row = el('div', {class:'tl-label-row tl-task', title:'클릭하면 이 업무의 기간으로 이동합니다'});
+        row.appendChild(el('span', {class:'tl-name', title:label}, [label]));
+        const depCount = (t.dependsOn||[]).length;
+        const depBtn = el('button', {class:'tl-dep-btn'+(depCount?' has-dep':''), title:'선행 업무 지정'}, [depCount ? ('🔗 '+depCount) : '🔗']);
+        depBtn.addEventListener('click', function(e){ e.stopPropagation(); tlOpenDepPopover(depBtn, t); });
+        row.appendChild(depBtn);
+        row.addEventListener('click', function(){ tlScrollToBar(chartScroll, left, width, bar); });
+        labels.appendChild(row);
+      }
+      chart.appendChild(rowEl);
+    });
 
     chartScroll.appendChild(chart);
     wrap.appendChild(chartScroll);
@@ -2220,6 +2282,15 @@
   });
   document.getElementById('tlZoomOut').addEventListener('click', function(){
     tlDayWidth = Math.max(10, tlDayWidth-6); tlSavePrefs(); renderTimeline();
+  });
+  document.getElementById('tlFilter').addEventListener('change', function(e){
+    const cb = e.target;
+    if(cb.tagName!=='INPUT') return;
+    const status = cb.getAttribute('data-status');
+    if(cb.checked) tlStatusFilter.add(status);
+    else tlStatusFilter.delete(status);
+    tlSavePrefs();
+    renderTimeline();
   });
   /* ---------------- Calendar controls ---------------- */
   document.getElementById('calPrev').addEventListener('click', function(){
