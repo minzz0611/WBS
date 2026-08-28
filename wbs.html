@@ -95,6 +95,17 @@
   .spacer{flex:1;}
   .summary{display:flex; flex-wrap:wrap; gap:10px 24px; font-size:13px;}
   .summary .item b{display:block; font-size:16px; margin-top:2px;}
+  .global-filter-bar{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);}
+  .gf-year-label{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--sub); flex:0 0 auto;}
+  .gf-year-label select{width:auto; min-width:110px; padding:6px 10px; font-weight:600;}
+  .gf-search{position:relative; display:flex; align-items:center; flex:1 1 240px; min-width:180px; max-width:340px;}
+  .gf-search-icon{position:absolute; left:10px; font-size:12px; opacity:.55; pointer-events:none;}
+  .gf-search input{width:100%; padding:7px 30px 7px 30px;}
+  .gf-search-clear{position:absolute; right:4px; border:none; background:transparent; color:var(--sub); cursor:pointer; font-size:11px; padding:5px 7px; border-radius:6px; display:none;}
+  .gf-search-clear:hover{background:var(--bg); color:var(--danger);}
+  .gf-search.has-text .gf-search-clear{display:block;}
+  .gf-hint{font-size:11.5px; color:var(--sub); flex:1 1 auto; min-width:200px;}
+  @media print{ .global-filter-bar{display:none !important;} }
   .chip{display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600;}
   .chip.done{color:var(--st-done); background:var(--st-done-bg);}
   .chip.progress{color:var(--st-progress); background:var(--st-progress-bg);}
@@ -301,15 +312,14 @@
   .tl-axis-day{position:absolute; top:14px; height:16px; font-size:9.5px; color:var(--header-text); opacity:.75; text-align:center; line-height:16px; box-sizing:border-box;}
   .tl-axis-day.weekend{opacity:.5;}
   .tl-row{height:30px; border-bottom:1px solid var(--border); position:relative; box-sizing:border-box;}
-  .tl-bar{position:absolute; top:5px; height:20px; border-radius:5px; display:flex; align-items:center; padding:0 8px; font-size:11px; font-weight:700; white-space:nowrap; overflow:hidden; cursor:pointer; box-sizing:border-box; gap:5px;}
+  .tl-bar{position:absolute; top:5px; height:20px; border-radius:5px; display:flex; align-items:center; padding:0 8px; font-size:11px; font-weight:700; white-space:nowrap; overflow:visible; cursor:pointer; box-sizing:border-box; gap:5px;}
+  .tl-bar>span:last-child{overflow:visible;}
   .tl-bar-task{top:6px; height:18px; background:var(--panel); border:1px solid var(--border); font-size:10.5px; font-weight:500; cursor:default;}
   .tl-bar .tl-dot{width:6px; height:6px; border-radius:50%; flex:0 0 auto;}
   .tl-weekend-col{position:absolute; top:0; background:rgba(120,120,120,.06); pointer-events:none;}
   .tl-today-line{position:absolute; top:0; width:2px; background:var(--danger); opacity:.55; pointer-events:none; z-index:3;}
   .tl-dep-svg{position:absolute; top:0; left:0; pointer-events:none; overflow:visible;}
   .tl-empty{padding:40px; text-align:center; color:var(--sub); font-size:13px;}
-  .tl-bar-label-outside{position:absolute; top:6px; height:18px; line-height:18px; white-space:nowrap; pointer-events:none; font-size:10.5px; color:var(--text); background:var(--panel); padding:0 4px 0 2px; border-radius:3px;}
-  .tl-bar-label-outside-project{top:5px; height:20px; line-height:20px; font-size:11px; font-weight:700;}
   @keyframes tl-flash-anim{ 0%{box-shadow:0 0 0 4px var(--accent);} 100%{box-shadow:0 0 0 0 transparent;} }
   .tl-bar.tl-flash{ animation: tl-flash-anim 1.1s ease; }
   .tl-dep-popover{position:fixed; z-index:80; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); padding:10px; width:290px; max-height:380px; display:flex; flex-direction:column;}
@@ -351,6 +361,17 @@
       <button class="danger" id="btnClearAll">전체 초기화</button>
     </div>
     <div class="summary" id="summaryBar"></div>
+  </div>
+  <div class="global-filter-bar no-print">
+    <label class="gf-year-label">연도
+      <select id="gYearSelect"><option value="">전체 연도</option></select>
+    </label>
+    <div class="gf-search">
+      <span class="gf-search-icon">🔍</span>
+      <input type="text" id="gSearchInput" placeholder="그룹, 업무, 담당자 검색">
+      <button id="gSearchClear" class="gf-search-clear" title="검색어 지우기">✕</button>
+    </div>
+    <span class="gf-hint">연도·검색 조건은 WBS 표/간트차트/캘린더/타임라인 전체에 함께 적용됩니다.</span>
   </div>
   <div class="tabbar no-print">
     <button class="tab-btn active" data-tab="table">WBS 표</button>
@@ -671,6 +692,94 @@
     }
     seedData();
   }
+  /* ---------------- UI prefs (마지막 탭, 간트 필터 등 화면별 설정 기억) ---------------- */
+  const UI_PREFS_KEY = 'wbs_ui_prefs_v1';
+  const TAB_NAMES = ['table','gantt','calendar','timeline'];
+  let uiLastTab = 'table';
+  function loadUIPrefs(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(UI_PREFS_KEY) || '{}');
+      if(TAB_NAMES.indexOf(raw.lastTab)!==-1) uiLastTab = raw.lastTab;
+      if(typeof raw.ganttHideDone === 'boolean') ganttHideCompleted = raw.ganttHideDone;
+    }catch(e){}
+  }
+  function saveUIPrefs(){
+    try{
+      localStorage.setItem(UI_PREFS_KEY, JSON.stringify({ lastTab: uiLastTab, ganttHideDone: ganttHideCompleted }));
+    }catch(e){}
+  }
+  function activateTab(tab){
+    uiLastTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===tab); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.toggle('active', p.id==='tabPanel-'+tab); });
+    saveUIPrefs();
+    if(tab==='calendar') renderCalendar();
+    if(tab==='gantt') renderGantt();
+    if(tab==='timeline') renderTimeline();
+  }
+  /* ---------------- Global filters (연도/검색) — WBS 표·간트차트·캘린더·타임라인 전체에 공통 적용 ---------------- */
+  const G_FILTER_KEY = 'wbs_global_filter_v1';
+  let gYear = ''; // '' = 전체 연도
+  let gSearch = '';
+  function loadGFilter(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(G_FILTER_KEY) || '{}');
+      if(typeof raw.year === 'string') gYear = raw.year;
+    }catch(e){}
+  }
+  function saveGFilter(){
+    try{ localStorage.setItem(G_FILTER_KEY, JSON.stringify({ year: gYear })); }catch(e){}
+  }
+  function gAvailableYears(){
+    const years = new Set();
+    state.groups.forEach(function(g){
+      g.tasks.forEach(function(t){
+        if(t.start) years.add(t.start.slice(0,4));
+        if(t.end) years.add(t.end.slice(0,4));
+      });
+    });
+    return Array.from(years).sort();
+  }
+  function gRenderYearOptions(){
+    const sel = document.getElementById('gYearSelect');
+    if(!sel) return;
+    const current = gYear;
+    sel.innerHTML = '';
+    sel.appendChild(el('option', {value:''}, ['전체 연도']));
+    gAvailableYears().forEach(function(y){
+      sel.appendChild(el('option', Object.assign({value:y}, y===current?{selected:'selected'}:{}), [y+'년']));
+    });
+    sel.value = current;
+  }
+  // 업무 하나가 연도/검색 조건에 맞는지 확인 (검색은 업무 자신과 소속 그룹 필드를 함께 봅니다)
+  function gTaskMatches(t, g){
+    if(gYear){
+      const sy = (t.start||'').slice(0,4), ey = (t.end||'').slice(0,4);
+      if(sy!==gYear && ey!==gYear) return false;
+    }
+    if(gSearch){
+      const q = gSearch.toLowerCase();
+      const hay = [g.title, g.category, t.detail, t.category, t.assignee].filter(Boolean).join(' ').toLowerCase();
+      if(hay.indexOf(q)===-1) return false;
+    }
+    return true;
+  }
+  // 그룹(프로젝트)이 필터 조건에 맞는 업무를 하나라도 갖고 있는지, 혹은 빈 그룹 자체가 조건에 맞는지 확인
+  function gGroupVisible(g){
+    if(g.tasks.length===0){
+      if(gYear) return false;
+      if(gSearch){
+        const q = gSearch.toLowerCase();
+        const hay = [g.title, g.category].filter(Boolean).join(' ').toLowerCase();
+        return hay.indexOf(q)!==-1;
+      }
+      return true;
+    }
+    return g.tasks.some(function(t){ return gTaskMatches(t, g); });
+  }
+  function gVisibleTasks(g){
+    return g.tasks.filter(function(t){ return gTaskMatches(t, g); });
+  }
   /* ---------------- Google Sheet sync ---------------- */
   const GS_URL_KEY = 'wbs_gs_url';
   const GS_LAST_SAVED_KEY = 'wbs_gs_last_saved';
@@ -817,6 +926,7 @@
   function fullRender(){
     rebuildHolidays();
     recalcAll();
+    gRenderYearOptions();
     renderTable();
     renderSummary();
     renderGantt();
@@ -1056,10 +1166,15 @@
       tbody.appendChild(el('tr', {}, [el('td', {colspan:'9', class:'empty'}, ['상단의 "+ 그룹 추가" 버튼을 눌러 WBS 작성을 시작하세요.'])]));
       return;
     }
-    state.groups.forEach(function(g, gi){
+    const visibleGroups = state.groups.filter(gGroupVisible);
+    if(visibleGroups.length===0){
+      tbody.appendChild(el('tr', {}, [el('td', {colspan:'9', class:'empty'}, ['조회조건에 맞는 그룹/업무가 없습니다. 연도·검색 조건을 확인해보세요.'])]));
+      return;
+    }
+    visibleGroups.forEach(function(g, gi){
       tbody.appendChild(buildGroupRow(g, gi));
       if(g.collapsed) return;
-      g.tasks.forEach(function(t, ti){
+      gVisibleTasks(g).forEach(function(t, ti){
         tbody.appendChild(buildTaskRow(g, t, gi, ti));
       });
     });
@@ -1176,17 +1291,20 @@
       el('td', {class:'sticky-c3 gantt-title-cell', title:title||''}, [title||''])
     ];
   }
-  let ganttHideCompleted = false;
+  let ganttHideCompleted = true; // 기본값: 완료 그룹 제외
   function renderGantt(){
     const container = document.getElementById('ganttInner');
     container.innerHTML = '';
-    const visibleGroups = ganttHideCompleted ? state.groups.filter(function(g){ return g._status!=='완료'; }) : state.groups;
+    const visibleGroups = state.groups.filter(function(g){
+      if(ganttHideCompleted && g._status==='완료') return false;
+      return gGroupVisible(g);
+    });
     let allTasks = [];
-    visibleGroups.forEach(function(g){ allTasks = allTasks.concat(g.tasks); });
+    visibleGroups.forEach(function(g){ allTasks = allTasks.concat(gVisibleTasks(g)); });
     const validStarts = allTasks.map(function(t){ return t.start; }).filter(Boolean);
     const validEnds = allTasks.map(function(t){ return t.end; }).filter(Boolean);
     if(validStarts.length===0 || validEnds.length===0){
-      container.appendChild(el('div', {style:'padding:20px; color:var(--sub); font-size:13px;'}, ['표시할 일정 데이터가 없습니다.']));
+      container.appendChild(el('div', {style:'padding:20px; color:var(--sub); font-size:13px;'}, ['조회조건에 맞는 일정 데이터가 없습니다.']));
       return;
     }
     const minStart = validStarts.slice().sort()[0];
@@ -1253,7 +1371,7 @@
       if(g._start && g._end) groupTitleTd.title = (g.title||'')+' ('+fmtDisplay(g._start)+' ~ '+fmtDisplay(g._end)+', '+g._md+'MD)';
       gtr.appendChild(groupTitleTd);
       tbody.appendChild(gtr);
-      g.tasks.forEach(function(t, ti){
+      gVisibleTasks(g).forEach(function(t, ti){
         const ttr = el('tr', {class:'gantt-row-task'});
         ganttLabelCells((gi+1)+'.'+(ti+1), t.category, t.detail).forEach(function(td){ ttr.appendChild(td); });
         periods.forEach(function(p, pi){
@@ -1287,6 +1405,10 @@
       if(Array.isArray(raw.statuses) && raw.statuses.length) calStatusFilter = new Set(raw.statuses.filter(function(s){ return CAL_STATUSES.indexOf(s)!==-1; }));
       if(Array.isArray(raw.collapsed)) calCollapsedGroups = new Set(raw.collapsed);
       if(typeof raw.project === 'string') calProjectFilter = raw.project;
+      if(typeof raw.anchor === 'string'){
+        const d = parseISO(raw.anchor);
+        if(d) calAnchor = d;
+      }
     }catch(e){}
   }
   function saveCalPrefs(){
@@ -1295,7 +1417,8 @@
         view: calView,
         statuses: Array.from(calStatusFilter),
         collapsed: Array.from(calCollapsedGroups),
-        project: calProjectFilter
+        project: calProjectFilter,
+        anchor: toISO(calAnchor)
       }));
     }catch(e){}
   }
@@ -1344,6 +1467,7 @@
       if(!collapsed){
         g.tasks.forEach(function(t){
           if(!calStatusFilter.has(t.status)) return;
+          if(!gTaskMatches(t, g)) return;
           const tS = parseISO(t.start), tE = parseISO(t.end);
           if(!tS || !tE) return;
           if(!calRangesOverlap(tS,tE,weekStart,weekEnd)) return;
@@ -1452,7 +1576,7 @@
     }
     calVisibleGroups = state.groups.filter(function(g){
       if(calProjectFilter && g.id!==calProjectFilter) return false;
-      return g.tasks.some(function(t){ return calStatusFilter.has(t.status); });
+      return g.tasks.some(function(t){ return calStatusFilter.has(t.status) && gTaskMatches(t, g); });
     });
     calRenderProjectOptions();
     const dowRow = el('div', {class:'cal-dow-row'});
@@ -1507,12 +1631,6 @@
     if(!d) return 0;
     return Math.round((d-originDate)/86400000);
   }
-  let _tlMeasureCtx = null;
-  function tlMeasureTextWidth(text, font){
-    if(!_tlMeasureCtx){ _tlMeasureCtx = document.createElement('canvas').getContext('2d'); }
-    _tlMeasureCtx.font = font;
-    return _tlMeasureCtx.measureText(text).width;
-  }
   function tlScrollToBar(scrollEl, left, width, barEl){
     if(!scrollEl) return;
     const target = left + width/2 - scrollEl.clientWidth/2;
@@ -1541,7 +1659,7 @@
     const rows = [];
     const taskRowIndex = {};
     state.groups.forEach(function(g){
-      const visibleTasks = g.tasks.filter(function(t){ return tlStatusFilter.has(t.status); });
+      const visibleTasks = g.tasks.filter(function(t){ return tlStatusFilter.has(t.status) && gTaskMatches(t, g); });
       if(visibleTasks.length===0) return; // 상태 필터에 걸리는 업무가 하나도 없으면 프로젝트 자체를 숨김
       rows.push({type:'group', group:g});
       if(!g.collapsed){
@@ -1677,9 +1795,11 @@
       }
     }
     const today = new Date(); today.setHours(0,0,0,0);
+    let todayLeftPx = null;
     if(today>=originDate && today<=endDate){
       const offset = Math.round((today-originDate)/86400000);
-      chart.appendChild(el('div', {class:'tl-today-line', style:'left:'+(offset*tlDayWidth)+'px; height:'+totalContentH+'px;', title:'오늘'}));
+      todayLeftPx = offset*tlDayWidth;
+      chart.appendChild(el('div', {class:'tl-today-line', style:'left:'+todayLeftPx+'px; height:'+totalContentH+'px;', title:'오늘'}));
     }
 
     // 종속성 화살표는 막대/라벨보다 먼저 그려서, 막대·라벨이 화살표 위에 겹쳐 보이도록(화살표가 뒤로 가도록) 합니다.
@@ -1728,8 +1848,7 @@
 
     // 라벨(왼쪽 목록)과 막대(오른쪽 차트)를 같은 순회에서 함께 만들어, 라벨 클릭 시
     // 해당 막대의 위치(left/width)를 그대로 재사용해 "해당 기간으로 이동"할 수 있게 합니다.
-    const PROJECT_FONT = '700 11px "Noto Sans KR", sans-serif';
-    const TASK_FONT = '500 10.5px "Noto Sans KR", sans-serif';
+    // 텍스트는 항상 막대 안쪽부터 시작하고, 막대 폭보다 길면 막대 밖으로 자연스럽게 이어져 흘러나갑니다(overflow:visible).
     rows.forEach(function(r){
       const rowEl = el('div', {class:'tl-row'});
       if(r.type==='group'){
@@ -1743,12 +1862,7 @@
           style:'left:'+left+'px; width:'+width+'px; background:var(--cal-c'+colorIdx+'-bg); color:var(--cal-c'+colorIdx+'-text); border:1px solid var(--cal-c'+colorIdx+'-border);',
           title: label+' ('+fmtDisplay(g._start)+' ~ '+fmtDisplay(g._end)+', '+(g._md||0)+'MD)'
         });
-        const neededInside = tlMeasureTextWidth(label, PROJECT_FONT)+16;
-        if(width>=neededInside){
-          bar.appendChild(el('span', {}, [label]));
-        } else {
-          rowEl.appendChild(el('span', {class:'tl-bar-label-outside tl-bar-label-outside-project', style:'left:'+(left+width+5)+'px;'}, [label]));
-        }
+        bar.appendChild(el('span', {}, [label]));
         bar.addEventListener('click', function(){ g.collapsed = !g.collapsed; fullRender(); });
         rowEl.appendChild(bar);
 
@@ -1769,12 +1883,7 @@
           title: (t.category?t.category+' · ':'')+label+' ('+fmtDisplay(t.start)+' ~ '+fmtDisplay(t.end)+', '+t.md+'MD, '+t.status+')'
         });
         bar.appendChild(el('span', {class:'tl-dot', style:'background:var(--cal-c'+colorIdx+'-border);'}));
-        const neededInside = tlMeasureTextWidth(label, TASK_FONT)+6+5+14;
-        if(width>=neededInside){
-          bar.appendChild(el('span', {}, [label]));
-        } else {
-          rowEl.appendChild(el('span', {class:'tl-bar-label-outside', style:'left:'+(left+width+5)+'px;'}, [label]));
-        }
+        bar.appendChild(el('span', {}, [label]));
         rowEl.appendChild(bar);
 
         const row = el('div', {class:'tl-label-row tl-task', title:'클릭하면 이 업무의 기간으로 이동합니다'});
@@ -1792,6 +1901,12 @@
     chartScroll.appendChild(chart);
     wrap.appendChild(chartScroll);
     container.appendChild(wrap);
+
+    // 기본적으로 오늘 날짜가 화면 중앙 쪽에 보이도록 스크롤 위치를 맞춥니다.
+    if(todayLeftPx!==null){
+      const viewW = chartScroll.clientWidth || 0;
+      chartScroll.scrollLeft = Math.max(0, todayLeftPx - viewW/2);
+    }
   }
   /* ---------------- Holiday modal ---------------- */
   function renderHolidayList(highlightKey){
@@ -2263,17 +2378,13 @@
   });
   document.getElementById('ganttHideDone').addEventListener('change', function(e){
     ganttHideCompleted = e.target.checked;
+    saveUIPrefs();
     renderGantt();
   });
   /* ---------------- Tabs ---------------- */
   document.querySelectorAll('.tab-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
-      const tab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b===btn); });
-      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.toggle('active', p.id==='tabPanel-'+tab); });
-      if(tab==='calendar') renderCalendar();
-      if(tab==='gantt') renderGantt();
-      if(tab==='timeline') renderTimeline();
+      activateTab(btn.getAttribute('data-tab'));
     });
   });
   /* ---------------- Timeline controls ---------------- */
@@ -2292,17 +2403,40 @@
     tlSavePrefs();
     renderTimeline();
   });
+  /* ---------------- Global filters (연도/검색) ---------------- */
+  document.getElementById('gYearSelect').addEventListener('change', function(e){
+    gYear = e.target.value;
+    saveGFilter();
+    fullRender();
+  });
+  let gSearchDebounce = null;
+  document.getElementById('gSearchInput').addEventListener('input', function(e){
+    gSearch = e.target.value.trim();
+    document.getElementById('gSearchInput').parentElement.classList.toggle('has-text', !!gSearch);
+    clearTimeout(gSearchDebounce);
+    gSearchDebounce = setTimeout(function(){ fullRender(); }, 200);
+  });
+  document.getElementById('gSearchClear').addEventListener('click', function(){
+    gSearch = '';
+    const input = document.getElementById('gSearchInput');
+    input.value = '';
+    input.parentElement.classList.remove('has-text');
+    fullRender();
+  });
   /* ---------------- Calendar controls ---------------- */
   document.getElementById('calPrev').addEventListener('click', function(){
     calAnchor = calView==='month' ? new Date(calAnchor.getFullYear(), calAnchor.getMonth()-1, 1) : calAddDays(calAnchor, -7);
+    saveCalPrefs();
     renderCalendar();
   });
   document.getElementById('calNext').addEventListener('click', function(){
     calAnchor = calView==='month' ? new Date(calAnchor.getFullYear(), calAnchor.getMonth()+1, 1) : calAddDays(calAnchor, 7);
+    saveCalPrefs();
     renderCalendar();
   });
   document.getElementById('calToday').addEventListener('click', function(){
     calAnchor = new Date(); calAnchor.setHours(0,0,0,0);
+    saveCalPrefs();
     renderCalendar();
   });
   document.getElementById('calViewMonth').addEventListener('click', function(){
@@ -2337,8 +2471,13 @@
   loadHolidayStorage();
   loadCalPrefs();
   tlLoadPrefs();
+  loadUIPrefs();
+  loadGFilter();
   load();
   fullRender();
+  const ganttHideDoneCb = document.getElementById('ganttHideDone');
+  if(ganttHideDoneCb) ganttHideDoneCb.checked = ganttHideCompleted;
+  activateTab(uiLastTab);
   gsRenderStatus();
   gsAutoLoadOnStart();
 })();
