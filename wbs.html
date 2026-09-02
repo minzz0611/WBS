@@ -109,15 +109,21 @@
   .summary{display:flex; flex-wrap:wrap; gap:10px 24px; font-size:13px; flex:1 1 auto; min-width:0;}
   .summary .item b{display:block; font-size:16px; margin-top:2px;}
   .global-filter-bar{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);}
-  .gf-year-label{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--sub); flex:0 0 auto;}
-  .gf-year-label select{width:auto; min-width:110px; padding:6px 10px; font-weight:600;}
-  .gf-search{position:relative; display:flex; align-items:center; flex:1 1 240px; min-width:180px; max-width:340px;}
+  .gf-year-label, .gf-assignee-label{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--sub); flex:0 0 auto;}
+  .gf-year-label select, .gf-assignee-label select{width:auto; min-width:110px; padding:6px 10px; font-weight:600;}
+  .gf-status-group{display:flex; gap:6px; flex:0 0 auto;}
+  .gf-status-chip{border:1px solid var(--border); background:transparent; color:var(--sub); font-size:12px; font-weight:700; padding:5px 11px; border-radius:999px; cursor:pointer;}
+  .gf-status-chip:hover{border-color:var(--accent);}
+  .gf-status-chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .gf-search{position:relative; display:flex; align-items:center; flex:1 1 200px; min-width:160px; max-width:300px;}
   .gf-search-icon{position:absolute; left:10px; font-size:12px; opacity:.55; pointer-events:none;}
   .gf-search input{width:100%; padding:7px 30px 7px 30px;}
   .gf-search-clear{position:absolute; right:4px; border:none; background:transparent; color:var(--sub); cursor:pointer; font-size:11px; padding:5px 7px; border-radius:6px; display:none;}
   .gf-search-clear:hover{background:var(--bg); color:var(--danger);}
   .gf-search.has-text .gf-search-clear{display:block;}
-  .gf-hint{font-size:11.5px; color:var(--sub); flex:1 1 auto; min-width:200px;}
+  .gf-reset-btn{font-size:12px; padding:6px 12px; font-weight:700; flex:0 0 auto; color:var(--sub);}
+  .gf-reset-btn.has-filter{color:var(--accent); border-color:var(--accent);}
+  .gf-hint{font-size:11.5px; color:var(--sub); flex:1 1 100%; min-width:200px;}
   @media print{ .global-filter-bar{display:none !important;} }
   .chip{display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600;}
   .chip.done{color:var(--st-done); background:var(--st-done-bg);}
@@ -395,12 +401,22 @@
     <label class="gf-year-label">연도
       <select id="gYearSelect"><option value="">전체 연도</option></select>
     </label>
+    <label class="gf-assignee-label">담당자
+      <select id="gAssigneeSelect"><option value="">전체 담당자</option></select>
+    </label>
+    <div class="gf-status-group" id="gStatusGroup">
+      <button type="button" class="gf-status-chip" data-status="예정">예정</button>
+      <button type="button" class="gf-status-chip" data-status="진행">진행</button>
+      <button type="button" class="gf-status-chip" data-status="완료">완료</button>
+      <button type="button" class="gf-status-chip" data-status="보류">보류</button>
+    </div>
     <div class="gf-search">
       <span class="gf-search-icon">🔍</span>
       <input type="text" id="gSearchInput" placeholder="그룹, 업무, 담당자 검색">
       <button id="gSearchClear" class="gf-search-clear" title="검색어 지우기">✕</button>
     </div>
-    <span class="gf-hint">연도·검색 조건은 WBS 표/간트차트/캘린더/타임라인 전체에 함께 적용됩니다.</span>
+    <button id="gFilterReset" class="gf-reset-btn" title="조회조건 초기화">초기화</button>
+    <span class="gf-hint">연도·담당자·상태·검색 조건은 WBS 표/간트차트/캘린더/타임라인 전체에 함께 적용됩니다.</span>
   </div>
   <div class="tabbar no-print">
     <button class="tab-btn active" data-tab="table">WBS 표</button>
@@ -747,18 +763,23 @@
     if(tab==='gantt') renderGantt();
     if(tab==='timeline') renderTimeline();
   }
-  /* ---------------- Global filters (연도/검색) — WBS 표·간트차트·캘린더·타임라인 전체에 공통 적용 ---------------- */
+  /* ---------------- Global filters (연도/담당자/상태/검색) — WBS 표·간트차트·캘린더·타임라인 전체에 공통 적용 ---------------- */
   const G_FILTER_KEY = 'wbs_global_filter_v1';
+  const GLOBAL_STATUSES = ['예정','진행','완료','보류'];
   let gYear = ''; // '' = 전체 연도
+  let gAssignee = ''; // '' = 전체 담당자
+  let gStatusFilter = new Set(GLOBAL_STATUSES); // 전체 = 필터 없음과 동일
   let gSearch = '';
   function loadGFilter(){
     try{
       const raw = JSON.parse(localStorage.getItem(G_FILTER_KEY) || '{}');
       if(typeof raw.year === 'string') gYear = raw.year;
+      if(typeof raw.assignee === 'string') gAssignee = raw.assignee;
+      if(Array.isArray(raw.statuses) && raw.statuses.length) gStatusFilter = new Set(raw.statuses.filter(function(s){ return GLOBAL_STATUSES.indexOf(s)!==-1; }));
     }catch(e){}
   }
   function saveGFilter(){
-    try{ localStorage.setItem(G_FILTER_KEY, JSON.stringify({ year: gYear })); }catch(e){}
+    try{ localStorage.setItem(G_FILTER_KEY, JSON.stringify({ year: gYear, assignee: gAssignee, statuses: Array.from(gStatusFilter) })); }catch(e){}
   }
   function gAvailableYears(){
     const years = new Set();
@@ -769,6 +790,13 @@
       });
     });
     return Array.from(years).sort();
+  }
+  function gAvailableAssignees(){
+    const names = new Set();
+    state.groups.forEach(function(g){
+      g.tasks.forEach(function(t){ if(t.assignee && t.assignee.trim()) names.add(t.assignee.trim()); });
+    });
+    return Array.from(names).sort(function(a,b){ return a.localeCompare(b,'ko'); });
   }
   function gRenderYearOptions(){
     const sel = document.getElementById('gYearSelect');
@@ -781,12 +809,31 @@
     });
     sel.value = current;
   }
-  // 업무 하나가 연도/검색 조건에 맞는지 확인 (검색은 업무 자신과 소속 그룹 필드를 함께 봅니다)
+  function gRenderAssigneeOptions(){
+    const sel = document.getElementById('gAssigneeSelect');
+    if(!sel) return;
+    const current = gAssignee;
+    sel.innerHTML = '';
+    sel.appendChild(el('option', {value:''}, ['전체 담당자']));
+    gAvailableAssignees().forEach(function(name){
+      sel.appendChild(el('option', Object.assign({value:name}, name===current?{selected:'selected'}:{}), [name]));
+    });
+    sel.value = current;
+  }
+  function gUpdateResetIndicator(){
+    const btn = document.getElementById('gFilterReset');
+    if(!btn) return;
+    const active = !!(gYear || gAssignee || gSearch || gStatusFilter.size < GLOBAL_STATUSES.length);
+    btn.classList.toggle('has-filter', active);
+  }
+  // 업무 하나가 연도/담당자/상태/검색 조건에 맞는지 확인 (검색은 업무 자신과 소속 그룹 필드를 함께 봅니다)
   function gTaskMatches(t, g){
     if(gYear){
       const sy = (t.start||'').slice(0,4), ey = (t.end||'').slice(0,4);
       if(sy!==gYear && ey!==gYear) return false;
     }
+    if(gAssignee && (t.assignee||'').trim()!==gAssignee) return false;
+    if(gStatusFilter.size < GLOBAL_STATUSES.length && !gStatusFilter.has(t.status)) return false;
     if(gSearch){
       const q = gSearch.toLowerCase();
       const hay = [g.title, g.category, t.detail, t.category, t.assignee].filter(Boolean).join(' ').toLowerCase();
@@ -798,6 +845,8 @@
   function gGroupVisible(g){
     if(g.tasks.length===0){
       if(gYear) return false;
+      if(gAssignee) return false;
+      if(gStatusFilter.size < GLOBAL_STATUSES.length) return false; // 업무가 없어 상태를 비교할 수 없으므로 상태 필터가 걸려있으면 숨김
       if(gSearch){
         const q = gSearch.toLowerCase();
         const hay = [g.title, g.category].filter(Boolean).join(' ').toLowerCase();
@@ -957,6 +1006,8 @@
     rebuildHolidays();
     recalcAll();
     gRenderYearOptions();
+    gRenderAssigneeOptions();
+    gUpdateResetIndicator();
     renderTable();
     renderSummary();
     renderGantt();
@@ -2499,9 +2550,34 @@
     tlSavePrefs();
     renderTimeline();
   });
-  /* ---------------- Global filters (연도/검색) ---------------- */
+  /* ---------------- Global filters (연도/담당자/상태/검색) ---------------- */
   document.getElementById('gYearSelect').addEventListener('change', function(e){
     gYear = e.target.value;
+    saveGFilter();
+    fullRender();
+  });
+  document.getElementById('gAssigneeSelect').addEventListener('change', function(e){
+    gAssignee = e.target.value;
+    saveGFilter();
+    fullRender();
+  });
+  document.querySelectorAll('.gf-status-chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      const s = chip.getAttribute('data-status');
+      if(gStatusFilter.has(s)) gStatusFilter.delete(s); else gStatusFilter.add(s);
+      chip.classList.toggle('active', gStatusFilter.has(s));
+      saveGFilter();
+      fullRender();
+    });
+  });
+  document.getElementById('gFilterReset').addEventListener('click', function(){
+    gYear = ''; gAssignee = ''; gSearch = ''; gStatusFilter = new Set(GLOBAL_STATUSES);
+    document.getElementById('gYearSelect').value = '';
+    document.getElementById('gAssigneeSelect').value = '';
+    const input = document.getElementById('gSearchInput');
+    input.value = '';
+    input.parentElement.classList.remove('has-text');
+    document.querySelectorAll('.gf-status-chip').forEach(function(chip){ chip.classList.add('active'); });
     saveGFilter();
     fullRender();
   });
@@ -2569,6 +2645,9 @@
   tlLoadPrefs();
   loadUIPrefs();
   loadGFilter();
+  document.querySelectorAll('.gf-status-chip').forEach(function(chip){
+    chip.classList.toggle('active', gStatusFilter.has(chip.getAttribute('data-status')));
+  });
   load();
   fullRender();
   const ganttHideDoneCb = document.getElementById('ganttHideDone');
